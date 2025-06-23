@@ -1,0 +1,31 @@
+# TP Cryptography - Project Configuration
+
+## Project Information
+- **Name**: Cryptography Algorithms TP
+- **Version**: 1.0.0
+- **Author**: Academic Project
+- **Language**: Python 3.8+
+- **Purpose**: Educational implementation of cryptographic algorithms
+
+## Dependencies
+- cryptography>=3.4.8 (for AES implementation)
+- tkinter (built-in with Python)
+
+## File Organization
+- All core algorithms in `src/` directory
+- Test files in `tests/` directory
+- User interfaces in root directory
+- Documentation in markdown files
+
+## Coding Standards
+- PEP 8 Python style guide
+- Comprehensive docstrings
+- Type hints where appropriate
+- Clear variable and function names
+- Educational comments and explanations
+
+## Security Notes
+- Implementations are for educational purposes
+- Some algorithms (MD5) included for historical context
+- Not suitable for production cryptographic needs
+- Focus on understanding principles over security

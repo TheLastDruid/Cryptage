@@ -1,0 +1,10 @@
+# Cryptography Algorithms TP - Requirements
+# 
+# Core dependencies for the cryptography algorithms implementation
+# Install with: pip install -r requirements.txt
+
+# Cryptography library for AES implementation and advanced features
+cryptography>=3.4.8
+
+# Note: tkinter is included with Python standard library (for GUI)
+# Note: hashlib is included with Python standard library (for hash functions)
