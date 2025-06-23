@@ -1,18 +1,8 @@
-"""
-Cryptanalysis tools and techniques
-"""
-
 import string
 from collections import Counter
 import re
 
-
 class CryptanalysisTools:
-    """
-    Tools for cryptanalysis and breaking various ciphers.
-    """
-    
-    # English letter frequencies (approximate percentages)
     ENGLISH_FREQ = {
         'A': 8.12, 'B': 1.49, 'C': 2.78, 'D': 4.25, 'E': 12.02,
         'F': 2.23, 'G': 2.02, 'H': 6.09, 'I': 6.97, 'J': 0.15,
@@ -24,262 +14,117 @@ class CryptanalysisTools:
     
     @staticmethod
     def frequency_analysis(text):
-        """
-        Perform frequency analysis on text.
-        
-        Args:
-            text (str): Text to analyze
-            
-        Returns:
-            dict: Letter frequencies as percentages
-        """
-        # Remove non-alphabetic characters and convert to uppercase
         clean_text = re.sub(r'[^A-Za-z]', '', text.upper())
-        
-        if not clean_text:
-            return {}
-        
-        # Count letters
+        if not clean_text: return {}
         letter_counts = Counter(clean_text)
         total_letters = len(clean_text)
-        
-        # Convert to percentages
         frequencies = {}
         for letter in string.ascii_uppercase:
             count = letter_counts.get(letter, 0)
             frequencies[letter] = (count / total_letters) * 100
-        
         return frequencies
     
     @staticmethod
     def chi_squared_test(observed_freq, expected_freq=None):
-        """
-        Perform chi-squared test to measure how close observed frequencies
-        are to expected English frequencies.
-        
-        Args:
-            observed_freq (dict): Observed letter frequencies
-            expected_freq (dict): Expected frequencies (uses English if None)
-            
-        Returns:
-            float: Chi-squared value (lower is better match)
-        """
-        if expected_freq is None:
-            expected_freq = CryptanalysisTools.ENGLISH_FREQ
-        
+        if expected_freq is None: expected_freq = CryptanalysisTools.ENGLISH_FREQ
         chi_squared = 0
         for letter in string.ascii_uppercase:
             observed = observed_freq.get(letter, 0)
             expected = expected_freq.get(letter, 0)
-            
-            if expected > 0:
-                chi_squared += ((observed - expected) ** 2) / expected
-        
+            if expected > 0: chi_squared += ((observed - expected) ** 2) / expected
         return chi_squared
     
     @staticmethod
     def index_of_coincidence(text):
-        """
-        Calculate Index of Coincidence for text.
-        Useful for determining if text is monoalphabetic or polyalphabetic.
-        
-        Args:
-            text (str): Text to analyze
-            
-        Returns:
-            float: Index of Coincidence
-        """
-        # Remove non-alphabetic characters and convert to uppercase
         clean_text = re.sub(r'[^A-Za-z]', '', text.upper())
-        
-        if len(clean_text) < 2:
-            return 0
-        
-        # Count letter frequencies
+        if len(clean_text) < 2: return 0
         letter_counts = Counter(clean_text)
         n = len(clean_text)
-        
-        # Calculate IC
         ic = 0
         for count in letter_counts.values():
             ic += count * (count - 1)
-        
         ic = ic / (n * (n - 1))
         return ic
     
     @staticmethod
     def break_caesar_cipher(ciphertext):
-        """
-        Break Caesar cipher using frequency analysis.
-        
-        Args:
-            ciphertext (str): Encrypted text
-            
-        Returns:
-            tuple: (best_shift, best_plaintext, chi_squared_score)
-        """
         from caesar_cipher import CaesarCipher
-        
-        best_shift = 0
-        best_score = float('inf')
-        best_plaintext = ""
-        
+        best_shift, best_score, best_plaintext = 0, float('inf'), ""
         for shift in range(26):
             cipher = CaesarCipher(shift)
             plaintext = cipher.decrypt(ciphertext)
-            
-            # Analyze frequency
             freq = CryptanalysisTools.frequency_analysis(plaintext)
             score = CryptanalysisTools.chi_squared_test(freq)
-            
             if score < best_score:
                 best_score = score
                 best_shift = shift
                 best_plaintext = plaintext
-        
         return best_shift, best_plaintext, best_score
     
     @staticmethod
     def estimate_vigenere_key_length(ciphertext, max_length=20):
-        """
-        Estimate Vigenère cipher key length using Kasiski examination
-        and Index of Coincidence.
-        
-        Args:
-            ciphertext (str): Encrypted text
-            max_length (int): Maximum key length to test
-            
-        Returns:
-            dict: Key length scores
-        """
         clean_text = re.sub(r'[^A-Za-z]', '', ciphertext.upper())
-        
-        if len(clean_text) < 50:
-            return {}
-        
+        if len(clean_text) < 50: return {}
         ic_scores = {}
-        
         for key_length in range(2, min(max_length + 1, len(clean_text) // 10)):
-            # Split text into subsequences
             subsequences = [''] * key_length
-            
             for i, char in enumerate(clean_text):
                 subsequences[i % key_length] += char
-            
-            # Calculate average IC for subsequences
             total_ic = 0
             valid_subsequences = 0
-            
             for subseq in subsequences:
                 if len(subseq) > 1:
                     ic = CryptanalysisTools.index_of_coincidence(subseq)
                     total_ic += ic
                     valid_subsequences += 1
-            
             if valid_subsequences > 0:
                 avg_ic = total_ic / valid_subsequences
                 ic_scores[key_length] = avg_ic
-        
         return ic_scores
     
     @staticmethod
     def find_repeated_sequences(text, min_length=3):
-        """
-        Find repeated sequences in text (Kasiski examination).
-        
-        Args:
-            text (str): Text to analyze
-            min_length (int): Minimum sequence length
-            
-        Returns:
-            dict: Repeated sequences and their positions
-        """
         clean_text = re.sub(r'[^A-Za-z]', '', text.upper())
         repeated_sequences = {}
-        
         for length in range(min_length, min(10, len(clean_text) // 3)):
             for i in range(len(clean_text) - length + 1):
                 sequence = clean_text[i:i + length]
-                
-                # Find all occurrences of this sequence
                 positions = []
                 for j in range(len(clean_text) - length + 1):
                     if clean_text[j:j + length] == sequence:
                         positions.append(j)
-                
-                # If sequence appears more than once, record it
                 if len(positions) > 1:
                     if sequence not in repeated_sequences:
                         repeated_sequences[sequence] = positions
-        
         return repeated_sequences
     
     @staticmethod
     def break_substitution_cipher_partial(ciphertext, known_mappings=None):
-        """
-        Attempt to break substitution cipher using frequency analysis
-        and known character mappings.
-        
-        Args:
-            ciphertext (str): Encrypted text
-            known_mappings (dict): Known character mappings
-            
-        Returns:
-            dict: Suggested character mappings
-        """
-        if known_mappings is None:
-            known_mappings = {}
-        
-        # Frequency analysis of ciphertext
+        if known_mappings is None: known_mappings = {}
         cipher_freq = CryptanalysisTools.frequency_analysis(ciphertext)
-        
-        # Sort by frequency
         cipher_sorted = sorted(cipher_freq.items(), key=lambda x: x[1], reverse=True)
-        english_sorted = sorted(CryptanalysisTools.ENGLISH_FREQ.items(), 
-                              key=lambda x: x[1], reverse=True)
-        
+        english_sorted = sorted(CryptanalysisTools.ENGLISH_FREQ.items(), key=lambda x: x[1], reverse=True)
         suggested_mappings = known_mappings.copy()
-        
-        # Map most frequent characters
         cipher_index = 0
         english_index = 0
-        
         while cipher_index < len(cipher_sorted) and english_index < len(english_sorted):
             cipher_char = cipher_sorted[cipher_index][0]
             english_char = english_sorted[english_index][0]
-            
-            # Skip if already mapped
             if cipher_char in suggested_mappings:
                 cipher_index += 1
                 continue
-            
             if english_char in suggested_mappings.values():
                 english_index += 1
                 continue
-            
             suggested_mappings[cipher_char] = english_char
             cipher_index += 1
             english_index += 1
-        
         return suggested_mappings
 
 
 class PasswordAnalyzer:
-    """
-    Tools for analyzing password strength and common attacks.
-    """
-    
     @staticmethod
     def analyze_password_strength(password):
-        """
-        Analyze password strength.
-        
-        Args:
-            password (str): Password to analyze
-            
-        Returns:
-            dict: Analysis results
-        """
         analysis = {
             'length': len(password),
             'has_lowercase': bool(re.search(r'[a-z]', password)),
@@ -290,165 +135,89 @@ class PasswordAnalyzer:
             'score': 0,
             'recommendations': []
         }
-        
-        # Calculate character set size
         charset_size = 0
-        if analysis['has_lowercase']:
-            charset_size += 26
-        if analysis['has_uppercase']:
-            charset_size += 26
-        if analysis['has_digits']:
-            charset_size += 10
-        if analysis['has_special']:
-            charset_size += 32  # Approximate
-        
-        # Calculate entropy
+        if analysis['has_lowercase']: charset_size += 26
+        if analysis['has_uppercase']: charset_size += 26
+        if analysis['has_digits']: charset_size += 10
+        if analysis['has_special']: charset_size += 32
         if charset_size > 0:
             import math
             analysis['entropy'] = len(password) * math.log2(charset_size)
-        
-        # Calculate score
         score = 0
-        if analysis['length'] >= 8:
-            score += 25
-        if analysis['length'] >= 12:
-            score += 25
-        if analysis['has_lowercase']:
-            score += 10
-        if analysis['has_uppercase']:
-            score += 10
-        if analysis['has_digits']:
-            score += 10
-        if analysis['has_special']:
-            score += 20
-        
+        if analysis['length'] >= 8: score += 25
+        if analysis['length'] >= 12: score += 25
+        if analysis['has_lowercase']: score += 10
+        if analysis['has_uppercase']: score += 10
+        if analysis['has_digits']: score += 10
+        if analysis['has_special']: score += 20
         analysis['score'] = min(score, 100)
-        
-        # Generate recommendations
-        if analysis['length'] < 8:
-            analysis['recommendations'].append("Use at least 8 characters")
-        if not analysis['has_lowercase']:
-            analysis['recommendations'].append("Include lowercase letters")
-        if not analysis['has_uppercase']:
-            analysis['recommendations'].append("Include uppercase letters")
-        if not analysis['has_digits']:
-            analysis['recommendations'].append("Include numbers")
-        if not analysis['has_special']:
-            analysis['recommendations'].append("Include special characters")
-        
+        if analysis['length'] < 8: analysis['recommendations'].append("Use at least 8 characters")
+        if not analysis['has_lowercase']: analysis['recommendations'].append("Include lowercase letters")
+        if not analysis['has_uppercase']: analysis['recommendations'].append("Include uppercase letters")
+        if not analysis['has_digits']: analysis['recommendations'].append("Include numbers")
+        if not analysis['has_special']: analysis['recommendations'].append("Include special characters")
         return analysis
     
     @staticmethod
     def estimate_crack_time(password):
-        """
-        Estimate time to crack password using brute force.
-        
-        Args:
-            password (str): Password to analyze
-            
-        Returns:
-            dict: Crack time estimates
-        """
-        # Determine character set
         charset_size = 0
-        if re.search(r'[a-z]', password):
-            charset_size += 26
-        if re.search(r'[A-Z]', password):
-            charset_size += 26
-        if re.search(r'\d', password):
-            charset_size += 10
-        if re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
-            charset_size += 32
-        
-        if charset_size == 0:
-            return {"error": "Invalid password"}
-        
-        # Calculate possible combinations
+        if re.search(r'[a-z]', password): charset_size += 26
+        if re.search(r'[A-Z]', password): charset_size += 26
+        if re.search(r'\d', password): charset_size += 10
+        if re.search(r'[!@#$%^&*(),.?":{}|<>]', password): charset_size += 32
+        if charset_size == 0: return {"error": "Invalid password"}
         combinations = charset_size ** len(password)
-        
-        # Assume different attack speeds (passwords per second)
         attack_speeds = {
-            'online_slow': 1000,           # Online attack with rate limiting
-            'online_fast': 1000000,        # Online attack without rate limiting
-            'offline_slow': 1000000000,    # Offline attack (CPU)
-            'offline_fast': 100000000000   # Offline attack (GPU)
+            'online_slow': 1000,
+            'online_fast': 1000000,
+            'offline_slow': 1000000000,
+            'offline_fast': 100000000000
         }
-        
         results = {}
         for attack_type, speed in attack_speeds.items():
-            # Average time to crack (half the search space)
             seconds = (combinations / 2) / speed
-            
-            # Convert to human readable format
-            if seconds < 60:
-                time_str = f"{seconds:.1f} seconds"
-            elif seconds < 3600:
-                time_str = f"{seconds/60:.1f} minutes"
-            elif seconds < 86400:
-                time_str = f"{seconds/3600:.1f} hours"
-            elif seconds < 31536000:
-                time_str = f"{seconds/86400:.1f} days"
-            else:
-                time_str = f"{seconds/31536000:.1f} years"
-            
+            if seconds < 60: time_str = f"{seconds:.1f} seconds"
+            elif seconds < 3600: time_str = f"{seconds/60:.1f} minutes"
+            elif seconds < 86400: time_str = f"{seconds/3600:.1f} hours"
+            elif seconds < 31536000: time_str = f"{seconds/86400:.1f} days"
+            else: time_str = f"{seconds/31536000:.1f} years"
             results[attack_type] = time_str
-        
         return results
 
 
 def main():
-    """
-    Demonstrate cryptanalysis tools.
-    """
     print("Cryptanalysis Tools Demonstration")
     print("=" * 35)
-    
-    # Test frequency analysis
     sample_text = "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG"
     print(f"Sample text: {sample_text}")
-    
     freq = CryptanalysisTools.frequency_analysis(sample_text)
     print("\nFrequency Analysis:")
     for letter, percentage in sorted(freq.items(), key=lambda x: x[1], reverse=True):
         if percentage > 0:
             print(f"{letter}: {percentage:.2f}%")
-    
-    # Test Index of Coincidence
     ic = CryptanalysisTools.index_of_coincidence(sample_text)
     print(f"\nIndex of Coincidence: {ic:.4f}")
     print("(English text typically has IC ≈ 0.067)")
-    
-    # Test Caesar cipher breaking
     from caesar_cipher import CaesarCipher
     caesar = CaesarCipher(7)
     encrypted_text = caesar.encrypt("HELLO WORLD THIS IS A TEST MESSAGE")
-    
     print(f"\nEncrypted with Caesar cipher (shift 7): {encrypted_text}")
-    
     shift, plaintext, score = CryptanalysisTools.break_caesar_cipher(encrypted_text)
     print(f"Broken! Shift: {shift}, Plaintext: {plaintext}")
     print(f"Chi-squared score: {score:.2f}")
-    
-    # Test password analysis
     passwords = ["password", "Password123", "P@ssw0rd123!", "MyVeryLongAndSecurePassword2024!"]
-    
     print("\nPassword Strength Analysis:")
     print("-" * 30)
-    
     analyzer = PasswordAnalyzer()
-    
     for pwd in passwords:
         analysis = analyzer.analyze_password_strength(pwd)
         crack_times = analyzer.estimate_crack_time(pwd)
-        
         print(f"\nPassword: '{pwd}'")
         print(f"Score: {analysis['score']}/100")
         print(f"Entropy: {analysis['entropy']:.1f} bits")
         print(f"Offline crack time (GPU): {crack_times.get('offline_fast', 'N/A')}")
-        
         if analysis['recommendations']:
             print(f"Recommendations: {', '.join(analysis['recommendations'])}")
-
 
 if __name__ == "__main__":
     main()
